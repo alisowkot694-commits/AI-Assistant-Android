@@ -1,4 +1,7 @@
-
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 name: Build AI Assistant APK
 
 on:
