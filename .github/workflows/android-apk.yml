@@ -350,11 +350,12 @@ jobs:
           s=s.replace('<application ', '<application android:icon="@drawable/ic_launcher" ')
           p.write_text(s, encoding="utf-8")
           source=Path("aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt").read_text(encoding="utf-8")
-          assert 'বাংলায় উত্তর তৈরি করা যায়নি' in source
-          assert 'bengaliVoiceReady' in source
-          assert 'Reply ONLY in Bengali' in source
+          assert 'chooseLanguage()' in source
+          assert 'UtteranceProgressListener' in source
+          assert 'selectedVoiceReady' in source
+          assert 'Reply ONLY in natural Bengali' in source
           assert 'ic_launcher' in p.read_text(encoding="utf-8")
-          print("Bengali-only speech guard, redesigned UI and launcher icon verified.")
+          print("Language picker, spoken-reply callbacks, Bengali voice selection, redesigned UI and launcher icon verified.")
           PY
 
       - name: Package unpacked source for implementation review
