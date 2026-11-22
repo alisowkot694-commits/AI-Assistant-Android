@@ -181,18 +181,20 @@ jobs:
                   val locale = Locale.forLanguageTag(if (selectedLanguage == "en") "en-US" else "bn-BD")
                   selectedVoiceReady = false
                   try {
+                      // Prefer an installed voice matching the selected language.
                       val voices = tts.voices.orEmpty().filter {
                           it.locale.language.equals(locale.language, ignoreCase = true)
                       }.sortedWith(compareBy<android.speech.tts.Voice> { it.isNetworkConnectionRequired }.thenByDescending { it.quality })
                       val voice = voices.firstOrNull()
                       if (voice != null) {
                           tts.voice = voice
-                          selectedVoiceReady = tts.language?.language.equals(locale.language, ignoreCase = true)
+                          // Some engines report a stale tts.language after setting a Voice.
+                          selectedVoiceReady = tts.voice?.locale?.language.equals(locale.language, ignoreCase = true)
                       } else {
                           val result = tts.setLanguage(locale)
-                          selectedVoiceReady = result != TextToSpeech.LANG_MISSING_DATA &&
-                              result != TextToSpeech.LANG_NOT_SUPPORTED &&
-                              tts.language?.language.equals(locale.language, ignoreCase = true)
+                          selectedVoiceReady = result >= TextToSpeech.LANG_AVAILABLE &&
+                              result != TextToSpeech.LANG_MISSING_DATA &&
+                              result != TextToSpeech.LANG_NOT_SUPPORTED
                       }
                   } catch (_: Exception) { selectedVoiceReady = false }
                   runOnUiThread {
@@ -324,7 +326,8 @@ jobs:
                       Toast.makeText(this, "নির্বাচিত ভাষার কণ্ঠস্বর ফোনে ইনস্টল নেই। ভাষা নির্বাচন থেকে আবার চেষ্টা করুন।", Toast.LENGTH_LONG).show()
                       return
                   }
-                  val result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "assistant_reply")
+                  val utteranceId = "assistant_reply_" + System.currentTimeMillis()
+                  val result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
                   if (result == TextToSpeech.ERROR) {
                       statusLabel.text = "●  কথা বলা যায়নি"
                       Toast.makeText(this, "কণ্ঠস্বর চালু করতে সমস্যা হয়েছে।", Toast.LENGTH_LONG).show()
