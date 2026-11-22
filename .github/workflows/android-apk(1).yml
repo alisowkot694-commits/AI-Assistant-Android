@@ -28,10 +28,9 @@ jobs:
       - name: Configure backend and capture Android source
         run: |
           set -eux
-          TARGET="aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt"
+          TARGET="aiassistant_work/app/src/main/java/com/aiassistant/app/MainActivity.kt"
           test -f "$TARGET"
-          grep -q 'https://your-backend.example.com' "$TARGET"
-          sed -i 's#https://your-backend.example.com#https://bangla-ai-assistant-backend.onrender.com#g' "$TARGET"
+          grep -RIl 'https://your-backend.example.com' aiassistant_work/app/src/main/java --include='*.kt' | xargs -r sed -i 's#https://your-backend.example.com#https://bangla-ai-assistant-backend.onrender.com#g'
           mkdir -p source-review
           cp -R aiassistant_work/app/src source-review/
           cp aiassistant_work/settings.gradle.kts source-review/
