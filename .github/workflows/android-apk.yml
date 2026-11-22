@@ -37,9 +37,9 @@ jobs:
           s = p.read_text(encoding="utf-8")
           s = s.replace("https://your-backend.example.com", "https://bangla-ai-assistant-backend.onrender.com")
           old_request = 'conn.outputStream.use { it.write(JSONObject().put("message", message).toString().toByteArray(Charsets.UTF_8)) }'
-          new_request = 'val languageInstruction = "Reply in the same language as the user. If the user speaks Bengali, reply in natural Bengali script. Keep the answer short and easy to understand unless asked for detail. Do not switch to English unless requested."
+          new_request = """val languageInstruction = "Reply in the same language as the user. If the user speaks Bengali, reply in natural Bengali script. Keep the answer short and easy to understand unless asked for detail. Do not switch to English unless requested."
                 val requestMessage = languageInstruction + "\\n\\nUser: " + message
-                conn.outputStream.use { it.write(JSONObject().put("message", requestMessage).toString().toByteArray(Charsets.UTF_8)) }'
+                conn.outputStream.use { it.write(JSONObject().put("message", requestMessage).toString().toByteArray(Charsets.UTF_8)) }"""
           if old_request in s:
               s = s.replace(old_request, new_request)
           s = s.replace('prefs.getString("endpoint", "")!!.trim()', 'prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim()')
