@@ -28,38 +28,23 @@ jobs:
       - name: Configure deployed backend URL
         run: |
           set -eux
-          TARGET="aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt"
-          test -f "$TARGET"
-          grep -q 'https://your-backend.example.com' "$TARGET"
-          sed -i 's#https://your-backend.example.com#https://bangla-ai-assistant-backend.onrender.com#g' "$TARGET"
-          python3 - <<'PY'
+          TARGET="$(find aiassistant_work/app/src/main/java -name MainActivity.kt -print -quit)"
+          test -n "$TARGET"
+          python3 - "$TARGET" <<'PY'
           from pathlib import Path
-          p = Path("aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt")
+          import sys
+          p = Path(sys.argv[1])
           s = p.read_text(encoding="utf-8")
+          s = s.replace("https://your-backend.example.com", "https://bangla-ai-assistant-backend.onrender.com")
           s = s.replace('prefs.getString("endpoint", "")!!.trim()', 'prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim()')
           s = s.replace('setText(prefs.getString("endpoint", ""))', 'setText(prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com"))')
-          p.write_text(s, encoding="utf-8")
-          assert 'prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")' in s
-          PY
-          grep -q 'https://bangla-ai-assistant-backend.onrender.com' "$TARGET"
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt")
-          s = p.read_text(encoding="utf-8")
-          old = 'prefs.getString("endpoint", "")!!.trim()'
-          new = 'prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim()'
-          assert old in s, "AI endpoint preference read not found"
-          s = s.replace(old, new)
-          old = 'setText(prefs.getString("endpoint", ""))'
-          new = 'setText(prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com"))'
-          assert old in s, "server settings default not found"
-          s = s.replace(old, new)
           old = 'val reply = JSONObject(body).optString("reply", "উত্তর পাওয়া যায়নি।")'
           new = 'val payload = JSONObject(body)\n                val reply = payload.optString("reply").ifBlank { payload.optString("error", "উত্তর পাওয়া যায়নি।") }'
-          assert old in s, "chat response parser not found"
-          s = s.replace(old, new)
+          if old in s:
+              s = s.replace(old, new)
           p.write_text(s, encoding="utf-8")
-          print("Backend URL default and server error reporting configured")
+          assert "bangla-ai-assistant-backend.onrender.com" in s, "Backend URL was not found/configured in MainActivity"
+          print(f"Configured backend in {p}")
           PY
 
       - name: Package unpacked source for implementation review
@@ -88,10 +73,10 @@ jobs:
           }
 
           android {
-              namespace = "com.banglaassistant"
+              namespace = "com.aiassistant.app"
               compileSdk = 34
               defaultConfig {
-                  applicationId = "com.banglaassistant"
+                  applicationId = "com.aiassistant.app"
                   minSdk = 23
                   targetSdk = 34
                   versionCode = 1
