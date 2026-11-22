@@ -37,11 +37,27 @@ jobs:
           s = p.read_text(encoding="utf-8")
           s = s.replace("https://your-backend.example.com", "https://bangla-ai-assistant-backend.onrender.com")
           old_request = 'conn.outputStream.use { it.write(JSONObject().put("message", message).toString().toByteArray(Charsets.UTF_8)) }'
-          new_request = """val languageInstruction = "Reply in the same language as the user. If the user speaks Bengali, reply in natural Bengali script. Keep the answer short and easy to understand unless asked for detail. Do not switch to English unless requested."
-                val requestMessage = languageInstruction + "\\n\\nUser: " + message
+          new_request = """val languageInstruction = "IMPORTANT LANGUAGE RULE: Detect the language of the user's message. If it is Bengali, you MUST answer ONLY in natural Bengali using বাংলা script. Never answer a Bengali message in English. Keep the answer clear and simple. If the user explicitly requests another language, use that language."
+                val requestMessage = languageInstruction + "\\n\\nUser message: " + message
                 conn.outputStream.use { it.write(JSONObject().put("message", requestMessage).toString().toByteArray(Charsets.UTF_8)) }"""
           if old_request in s:
               s = s.replace(old_request, new_request)
+          # Strengthen Bengali speech output and report missing device language data instead of silently speaking English.
+          old_tts = 'if (status == TextToSpeech.SUCCESS) tts.language = Locale("bn", "BD")'
+          new_tts = """if (status == TextToSpeech.SUCCESS) {
+                  var languageStatus = tts.setLanguage(Locale.forLanguageTag("bn-BD"))
+                  if (languageStatus == TextToSpeech.LANG_MISSING_DATA || languageStatus == TextToSpeech.LANG_NOT_SUPPORTED) {
+                      languageStatus = tts.setLanguage(Locale.forLanguageTag("bn-IN"))
+                  }
+                  if (languageStatus == TextToSpeech.LANG_MISSING_DATA || languageStatus == TextToSpeech.LANG_NOT_SUPPORTED) {
+                      runOnUiThread {
+                          Toast.makeText(this, "বাংলা কণ্ঠস্বর চালাতে ফোনে Bengali TTS voice data ইনস্টল করুন।", Toast.LENGTH_LONG).show()
+                          try { startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)) } catch (_: Exception) {}
+                      }
+                  }
+              }"""
+          if old_tts in s:
+              s = s.replace(old_tts, new_tts)
           s = s.replace('prefs.getString("endpoint", "")!!.trim()', 'prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim()')
           s = s.replace('setText(prefs.getString("endpoint", ""))', 'setText(prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com"))')
           old = 'val reply = JSONObject(body).optString("reply", "উত্তর পাওয়া যায়নি।")'
