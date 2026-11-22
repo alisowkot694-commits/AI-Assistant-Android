@@ -25,6 +25,27 @@ jobs:
           test -f aiassistant_work/settings.gradle.kts
           test -f aiassistant_work/app/build.gradle.kts
 
+      - name: Configure backend and capture Android source
+        run: |
+          set -eux
+          TARGET="aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt"
+          test -f "$TARGET"
+          grep -q 'https://your-backend.example.com' "$TARGET"
+          sed -i 's#https://your-backend.example.com#https://bangla-ai-assistant-backend.onrender.com#g' "$TARGET"
+          mkdir -p source-review
+          cp -R aiassistant_work/app/src source-review/
+          cp aiassistant_work/settings.gradle.kts source-review/
+          cp aiassistant_work/app/build.gradle.kts source-review/
+          cd source-review
+          zip -qr ../android-source-review.zip .
+      - name: Upload Android source for implementation review
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-source-review
+          path: android-source-review.zip
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Fix Java and Kotlin JVM target compatibility
         run: |
           python3 - <<'PY'
