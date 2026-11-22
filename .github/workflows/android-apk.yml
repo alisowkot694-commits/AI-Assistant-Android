@@ -140,6 +140,9 @@ jobs:
                   root.addView(tools)
                   root.addView(actionButton("🌐 ভাষা নির্বাচন: বাংলা / English", Color.rgb(55, 100, 155)) { chooseLanguage() },
                       LinearLayout.LayoutParams(-1, 48).apply { topMargin = 8 })
+                  root.addView(actionButton("🔊 কণ্ঠ পরীক্ষা করুন", Color.rgb(24, 135, 118)) {
+                      speak(if (selectedLanguage == "en") "Hello! Your voice is working." else "আসসালামু আলাইকুম। বাংলা কণ্ঠস্বর ঠিকভাবে কাজ করছে।")
+                  }, LinearLayout.LayoutParams(-1, 48).apply { topMargin = 8 })
                   setContentView(root)
               }
 
@@ -258,6 +261,12 @@ jobs:
                           val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
                           val payload = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
                           var reply = payload.optString("reply").ifBlank { payload.optString("text") }
+                          if (code !in 200..299) {
+                              val detail = payload.optString("error")
+                              reply = if (detail.contains("OPENAI_API_KEY", true))
+                                  "AI সার্ভারের চাবি (API Key) এখনো সেট করা হয়নি। তাই AI উত্তর দিতে পারছে না।"
+                              else "AI সার্ভারে সমস্যা হয়েছে। একটু পরে আবার চেষ্টা করুন।"
+                          }
                           val bengaliInput = message.any { it in '\u0980'..'\u09FF' }
                           val bengaliReply = reply.any { it in '\u0980'..'\u09FF' }
                           if (bengaliInput && !bengaliReply) reply = "দুঃখিত, এবার বাংলায় উত্তর তৈরি করা যায়নি। আবার চেষ্টা করুন।"
