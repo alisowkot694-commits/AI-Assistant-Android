@@ -5,7 +5,7 @@ on:
   push:
     paths:
       - "AI-Assistant-Android-BIG-SMALL-Source(1)(1).zip"
-      - ".github/workflows/build-native-android-fixed.yml"
+      - ".github/workflows/build-native-android-fixed(1).yml"
     branches: ["main", "master"]
 
 permissions:
@@ -27,6 +27,15 @@ jobs:
           test -f aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt
           test -f aiassistant_work/app/src/main/java/com/banglaassistant/FloatingButtonService.kt
           ! grep -R "android.webkit.WebView" aiassistant_work/app/src/main/java
+
+      - name: Configure deployed backend URL
+        run: |
+          set -eux
+          TARGET="aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt"
+          test -f "$TARGET"
+          grep -q 'https://your-backend.example.com' "$TARGET"
+          sed -i 's#https://your-backend.example.com#https://bangla-ai-assistant-backend.onrender.com#g' "$TARGET"
+          grep -q 'https://bangla-ai-assistant-backend.onrender.com' "$TARGET"
 
       - name: Align Java and Kotlin JVM targets
         run: |
