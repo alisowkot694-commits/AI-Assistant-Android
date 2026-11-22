@@ -361,7 +361,7 @@ jobs:
           s=p.read_text(encoding="utf-8")
           import re
           if 'android:icon="@drawable/ic_launcher"' not in s:
-              s, count = re.subn(r'<application(?=\\s|>)', '<application android:icon="@drawable/ic_launcher"', s, count=1)
+              s, count = re.subn(r'<application(?=\s|>)', '<application android:icon="@drawable/ic_launcher"', s, count=1)
               assert count == 1, "AndroidManifest.xml application tag not found"
           p.write_text(s, encoding="utf-8")
           source=next(Path("aiassistant_work/app/src/main/java").rglob("MainActivity.kt")).read_text(encoding="utf-8")
