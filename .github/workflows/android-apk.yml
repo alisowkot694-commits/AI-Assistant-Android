@@ -32,6 +32,15 @@ jobs:
           test -f "$TARGET"
           grep -q 'https://your-backend.example.com' "$TARGET"
           sed -i 's#https://your-backend.example.com#https://bangla-ai-assistant-backend.onrender.com#g' "$TARGET"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt")
+          s = p.read_text(encoding="utf-8")
+          s = s.replace('prefs.getString("endpoint", "")!!.trim()', 'prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim()')
+          s = s.replace('setText(prefs.getString("endpoint", ""))', 'setText(prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com"))')
+          p.write_text(s, encoding="utf-8")
+          assert 'prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")' in s
+          PY
           grep -q 'https://bangla-ai-assistant-backend.onrender.com' "$TARGET"
 
       - name: Package unpacked source for implementation review
