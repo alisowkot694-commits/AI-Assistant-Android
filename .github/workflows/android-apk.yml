@@ -25,48 +25,273 @@ jobs:
           test -f aiassistant_work/settings.gradle.kts
           test -f aiassistant_work/app/build.gradle.kts
 
-      - name: Configure deployed backend URL
+      - name: Configure Bengali app, redesigned interface and launcher logo
         run: |
           set -eux
           TARGET="$(find aiassistant_work/app/src/main/java -name MainActivity.kt -print -quit)"
+          MANIFEST="aiassistant_work/app/src/main/AndroidManifest.xml"
           test -n "$TARGET"
-          python3 - "$TARGET" <<'PY'
-          from pathlib import Path
-          import sys
-          p = Path(sys.argv[1])
-          s = p.read_text(encoding="utf-8")
-          s = s.replace("https://your-backend.example.com", "https://bangla-ai-assistant-backend.onrender.com")
-          old_request = 'conn.outputStream.use { it.write(JSONObject().put("message", message).toString().toByteArray(Charsets.UTF_8)) }'
-          new_request = """val languageInstruction = "IMPORTANT LANGUAGE RULE: Detect the language of the user's message. If it is Bengali, you MUST answer ONLY in natural Bengali using বাংলা script. Never answer a Bengali message in English. Keep the answer clear and simple. If the user explicitly requests another language, use that language."
-                val requestMessage = languageInstruction + "\\n\\nUser message: " + message
-                conn.outputStream.use { it.write(JSONObject().put("message", requestMessage).toString().toByteArray(Charsets.UTF_8)) }"""
-          if old_request in s:
-              s = s.replace(old_request, new_request)
-          # Strengthen Bengali speech output and report missing device language data instead of silently speaking English.
-          old_tts = 'if (status == TextToSpeech.SUCCESS) tts.language = Locale("bn", "BD")'
-          new_tts = """if (status == TextToSpeech.SUCCESS) {
-                  var languageStatus = tts.setLanguage(Locale.forLanguageTag("bn-BD"))
-                  if (languageStatus == TextToSpeech.LANG_MISSING_DATA || languageStatus == TextToSpeech.LANG_NOT_SUPPORTED) {
-                      languageStatus = tts.setLanguage(Locale.forLanguageTag("bn-IN"))
+          mkdir -p aiassistant_work/app/src/main/res/drawable
+          cat > "$TARGET" <<'KOTLIN'
+          package com.banglaassistant
+
+          import android.app.*
+          import android.content.*
+          import android.graphics.Color
+          import android.graphics.Typeface
+          import android.graphics.drawable.GradientDrawable
+          import android.net.Uri
+          import android.os.*
+          import android.provider.Settings
+          import android.speech.RecognizerIntent
+          import android.speech.tts.TextToSpeech
+          import android.view.Gravity
+          import android.view.View
+          import android.widget.*
+          import org.json.JSONObject
+          import java.net.HttpURLConnection
+          import java.net.URL
+          import java.util.Locale
+          import java.util.concurrent.Executors
+
+          class MainActivity : Activity(), TextToSpeech.OnInitListener {
+              private lateinit var answer: TextView
+              private lateinit var input: EditText
+              private lateinit var tts: TextToSpeech
+              private var bengaliVoiceReady = false
+              private val io = Executors.newSingleThreadExecutor()
+              private val prefs by lazy { getSharedPreferences("assistant", MODE_PRIVATE) }
+              private val navy = Color.rgb(9, 24, 64)
+              private val blue = Color.rgb(27, 91, 220)
+              private val cyan = Color.rgb(24, 205, 220)
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  window.statusBarColor = navy
+                  window.navigationBarColor = navy
+                  tts = TextToSpeech(this, this)
+                  val root = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(18, 18, 18, 18)
+                      background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                          intArrayOf(Color.rgb(7, 20, 55), Color.rgb(19, 56, 117), Color.rgb(8, 34, 79)))
                   }
-                  if (languageStatus == TextToSpeech.LANG_MISSING_DATA || languageStatus == TextToSpeech.LANG_NOT_SUPPORTED) {
-                      runOnUiThread {
-                          Toast.makeText(this, "বাংলা কণ্ঠস্বর চালাতে ফোনে Bengali TTS voice data ইনস্টল করুন।", Toast.LENGTH_LONG).show()
-                          try { startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)) } catch (_: Exception) {}
+                  val header = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      gravity = Gravity.CENTER
+                      setPadding(18, 20, 18, 20)
+                      background = rounded(Color.rgb(18, 67, 145), 26)
+                  }
+                  header.addView(TextView(this).apply {
+                      text = "✦  বাংলা AI সহকারী  ✦"; textSize = 25f
+                      setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
+                  })
+                  header.addView(TextView(this).apply {
+                      text = "আপনার ভাষায় কথা বলুন • লিখুন • জানুন"; textSize = 14f
+                      setTextColor(Color.rgb(205, 235, 255)); gravity = Gravity.CENTER
+                      setPadding(0, 8, 0, 0)
+                  })
+                  root.addView(header, LinearLayout.LayoutParams(-1, -2))
+                  val status = TextView(this).apply {
+                      text = "●  বাংলা কথোপকথনের জন্য প্রস্তুত"; textSize = 13f
+                      setTextColor(Color.rgb(120, 245, 206)); setPadding(4, 14, 4, 10)
+                  }
+                  root.addView(status)
+                  val answerCard = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL; setPadding(16, 14, 16, 14)
+                      background = rounded(Color.rgb(247, 250, 255), 20)
+                  }
+                  answerCard.addView(TextView(this).apply {
+                      text = "সহকারীর উত্তর"; textSize = 13f; setTextColor(blue)
+                      typeface = Typeface.DEFAULT_BOLD
+                  })
+                  answer = TextView(this).apply {
+                      text = "আসসালামু আলাইকুম! আমি আপনার বাংলা AI সহকারী। কীভাবে সাহায্য করতে পারি?"
+                      textSize = 17f; setTextColor(Color.rgb(20, 34, 60))
+                      setPadding(0, 10, 0, 4)
+                  }
+                  answerCard.addView(ScrollView(this).apply { addView(answer) },
+                      LinearLayout.LayoutParams(-1, 0, 1f))
+                  root.addView(answerCard, LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 14 })
+                  input = EditText(this).apply {
+                      hint = "এখানে বাংলায় লিখুন…"; textSize = 16f; minLines = 2
+                      setTextColor(Color.WHITE); setHintTextColor(Color.rgb(190, 210, 235))
+                      setPadding(14, 12, 14, 12); background = rounded(Color.rgb(27, 54, 99), 16)
+                  }
+                  root.addView(input, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10 })
+                  val voiceSend = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                  voiceSend.addView(actionButton("🎙  বাংলায় বলুন", cyan) { startVoice() },
+                      LinearLayout.LayoutParams(0, 54, 1f).apply { rightMargin = 6 })
+                  voiceSend.addView(actionButton("পাঠান  ➤", blue) { askAI(input.text.toString()) },
+                      LinearLayout.LayoutParams(0, 54, 1f).apply { leftMargin = 6 })
+                  root.addView(voiceSend)
+                  val tools = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 10, 0, 0) }
+                  tools.addView(actionButton("BIG / SMALL", Color.rgb(35, 132, 112)) { bigSmall() },
+                      LinearLayout.LayoutParams(0, 48, 1f).apply { rightMargin = 4 })
+                  tools.addView(actionButton("ভাসমান বাটন", Color.rgb(85, 83, 170)) { enableBubble() },
+                      LinearLayout.LayoutParams(0, 48, 1f).apply { leftMargin = 4; rightMargin = 4 })
+                  tools.addView(actionButton("সার্ভার", Color.rgb(74, 95, 126)) { setServer() },
+                      LinearLayout.LayoutParams(0, 48, 1f).apply { leftMargin = 4 })
+                  root.addView(tools)
+                  setContentView(root)
+              }
+
+              private fun rounded(color: Int, radius: Int): GradientDrawable =
+                  GradientDrawable().apply { setColor(color); cornerRadius = radius.toFloat() }
+
+              private fun actionButton(label: String, color: Int, action: () -> Unit): Button =
+                  Button(this).apply {
+                      text = label; textSize = 13f; isAllCaps = false
+                      setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD
+                      background = rounded(color, 16); setOnClickListener { action() }
+                  }
+
+              override fun onInit(status: Int) {
+                  if (status != TextToSpeech.SUCCESS) {
+                      runOnUiThread { Toast.makeText(this, "ফোনের Text-to-Speech সেবা চালু করা যায়নি।", Toast.LENGTH_LONG).show() }
+                      return
+                  }
+                  var result = tts.setLanguage(Locale.forLanguageTag("bn-BD"))
+                  if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                      result = tts.setLanguage(Locale.forLanguageTag("bn-IN"))
+                  }
+                  bengaliVoiceReady = result != TextToSpeech.LANG_MISSING_DATA &&
+                      result != TextToSpeech.LANG_NOT_SUPPORTED && result >= TextToSpeech.LANG_AVAILABLE
+                  if (!bengaliVoiceReady) runOnUiThread {
+                      Toast.makeText(this, "বাংলা কণ্ঠস্বর নেই। ফোনে Bengali voice data ইনস্টল করুন।", Toast.LENGTH_LONG).show()
+                      try { startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)) } catch (_: Exception) {}
+                  }
+              }
+
+              private fun startVoice() {
+                  val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                      putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                      putExtra(RecognizerIntent.EXTRA_LANGUAGE, "bn-BD")
+                      putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "bn-BD")
+                      putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
+                      putExtra(RecognizerIntent.EXTRA_PROMPT, "বাংলায় বলুন")
+                  }
+                  try { startActivityForResult(intent, 410) }
+                  catch (_: Exception) { show("এই ফোনে বাংলা ভয়েস ইনপুট সেবা পাওয়া যাচ্ছে না।") }
+              }
+
+              @Deprecated("Legacy speech result callback")
+              override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+                  super.onActivityResult(requestCode, resultCode, data)
+                  if (requestCode == 410 && resultCode == RESULT_OK) {
+                      val words = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
+                      input.setText(words)
+                      if (words.isNotBlank()) askAI(words)
+                  }
+              }
+
+              private fun askAI(message: String) {
+                  if (message.isBlank()) { show("আগে কিছু লিখুন অথবা মাইক্রোফোনে বলুন।"); return }
+                  val endpoint = prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim()
+                  show("আপনার প্রশ্নের উত্তর তৈরি হচ্ছে…")
+                  io.execute {
+                      try {
+                          val conn = URL(endpoint.trimEnd('/') + "/chat").openConnection() as HttpURLConnection
+                          conn.requestMethod = "POST"; conn.connectTimeout = 20000; conn.readTimeout = 60000
+                          conn.doOutput = true; conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                          val prompt = "LANGUAGE REQUIREMENT: Reply ONLY in Bengali language using Bengali script. Never use English unless the user explicitly asks for English. You are a friendly Bengali voice assistant.\nUser message: " + message
+                          conn.outputStream.use { it.write(JSONObject().put("message", prompt).toString().toByteArray(Charsets.UTF_8)) }
+                          val code = conn.responseCode
+                          val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+                          val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                          val payload = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                          var reply = payload.optString("reply").ifBlank { payload.optString("text") }
+                          val bengaliInput = message.any { it in '\u0980'..'\u09FF' }
+                          val bengaliReply = reply.any { it in '\u0980'..'\u09FF' }
+                          if (bengaliInput && !bengaliReply) reply = "দুঃখিত, এবার বাংলায় উত্তর তৈরি করা যায়নি। আবার চেষ্টা করুন।"
+                          if (reply.isBlank()) reply = "দুঃখিত, সার্ভার থেকে উত্তর পাওয়া যায়নি।"
+                          runOnUiThread { show(reply); speak(reply) }
+                          conn.disconnect()
+                      } catch (_: Exception) {
+                          runOnUiThread { show("সার্ভারে সংযোগ হয়নি। ইন্টারনেট ও সার্ভার সেটিংস পরীক্ষা করুন।") }
                       }
                   }
-              }"""
-          if old_tts in s:
-              s = s.replace(old_tts, new_tts)
-          s = s.replace('prefs.getString("endpoint", "")!!.trim()', 'prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim()')
-          s = s.replace('setText(prefs.getString("endpoint", ""))', 'setText(prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com"))')
-          old = 'val reply = JSONObject(body).optString("reply", "উত্তর পাওয়া যায়নি।")'
-          new = 'val payload = JSONObject(body)\n                val reply = payload.optString("reply").ifBlank { payload.optString("error", "উত্তর পাওয়া যায়নি।") }'
-          if old in s:
-              s = s.replace(old, new)
+              }
+
+              private fun bigSmall() {
+                  val field = EditText(this).apply { hint = "যেমন: 3, 8, 1, 6"; textSize = 16f }
+                  AlertDialog.Builder(this).setTitle("BIG / SMALL পরিসংখ্যান")
+                      .setMessage("আগের ফলাফল লিখুন। ৫–৯ = BIG, ০–৪ = SMALL।")
+                      .setView(field).setPositiveButton("বিশ্লেষণ") { _, _ ->
+                          val nums = field.text.toString().split(",", " ", "،").mapNotNull { it.trim().toIntOrNull() }.filter { it in 0..9 }
+                          if (nums.isEmpty()) { show("সঠিক সংখ্যা পাওয়া যায়নি।"); return@setPositiveButton }
+                          val big = nums.count { it >= 5 }; val small = nums.size - big
+                          show("মোট ফলাফল: ${nums.size}টি\nBIG: $big\nSMALL: $small\n" +
+                              (if (big > small) "আগের ফলাফলে BIG বেশি" else if (small > big) "আগের ফলাফলে SMALL বেশি" else "দুটির সংখ্যা সমান") +
+                              "\n\nএটি শুধু অতীতের পরিসংখ্যান; পরের ফলাফলের নিশ্চয়তা নয়।")
+                      }.setNegativeButton("বন্ধ", null).show()
+              }
+
+              private fun enableBubble() {
+                  if (!Settings.canDrawOverlays(this)) {
+                      startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + packageName)))
+                      show("পরের স্ক্রিনে অন্য অ্যাপের ওপর দেখানোর অনুমতি চালু করে ফিরে আসুন।")
+                  } else {
+                      startService(Intent(this, FloatingButtonService::class.java))
+                      show("ভাসমান AI বাটন চালু হয়েছে।")
+                  }
+              }
+
+              private fun setServer() {
+                  val field = EditText(this).apply {
+                      hint = "Backend URL"
+                      setText(prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com"))
+                  }
+                  AlertDialog.Builder(this).setTitle("AI সার্ভার ঠিকানা")
+                      .setMessage("ব্যাকএন্ড URL দিন। OpenAI API Key এখানে দেবেন না।")
+                      .setView(field).setPositiveButton("সংরক্ষণ") { _, _ ->
+                          prefs.edit().putString("endpoint", field.text.toString().trim()).apply()
+                          show("সার্ভার ঠিকানা সংরক্ষণ হয়েছে।")
+                      }.setNegativeButton("বাতিল", null).show()
+              }
+
+              private fun show(text: String) { answer.text = text }
+              private fun speak(text: String) {
+                  if (!bengaliVoiceReady) {
+                      Toast.makeText(this, "বাংলা কণ্ঠস্বর চালু নেই—ইংরেজিতে পড়ে শোনানো বন্ধ রাখা হয়েছে।", Toast.LENGTH_LONG).show()
+                      return
+                  }
+                  if (::tts.isInitialized) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "reply")
+              }
+              override fun onDestroy() {
+                  if (::tts.isInitialized) tts.shutdown()
+                  io.shutdownNow()
+                  super.onDestroy()
+              }
+          }
+          KOTLIN
+          cat > aiassistant_work/app/src/main/res/drawable/ic_launcher.xml <<'XML'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+              <path android:fillColor="#071B55" android:pathData="M0,0h108v108h-108z"/>
+              <path android:fillColor="#0879D9" android:pathData="M54,5a49,49 0,1 0,0 98a49,49 0,1 0,0 -98"/>
+              <path android:fillColor="#12D8CE" android:pathData="M54,10a44,44 0,1 0,0 88a44,44 0,1 0,0 -88"/>
+              <path android:fillColor="#FFFFFF" android:pathData="M29,31a25,25 0,0 1,50 0v25a25,25 0,0 1,-50 0z"/>
+              <path android:fillColor="#061A43" android:pathData="M34,35a20,20 0,0 1,40 0v18a20,20 0,0 1,-40 0z"/>
+              <path android:fillColor="#22E5F0" android:pathData="M42,44a4,5 0,1 0,0 10a4,5 0,1 0,0 -10 M62,44a4,5 0,1 0,0 10a4,5 0,1 0,0 -10 M45,61q9,10 18,0z"/>
+              <path android:fillColor="#FFFFFF" android:pathData="M24,36h7v20h-7z M77,36h7v20h-7z"/>
+              <path android:fillColor="#FFFFFF" android:pathData="M47,71h14v21h-14z"/>
+              <path android:fillColor="#20D9C4" android:pathData="M39,77q-13,-3 -14,-15q13,2 18,12z M69,77q13,-3 14,-15q-13,2 -18,12z"/>
+              <path android:fillColor="#F8D56B" android:pathData="M83,17l2,6 6,2 -6,2 -2,6 -2,-6 -6,-2 6,-2z"/>
+          </vector>
+          XML
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("aiassistant_work/app/src/main/AndroidManifest.xml")
+          s=p.read_text(encoding="utf-8")
+          s=s.replace('<application ', '<application android:icon="@drawable/ic_launcher" ')
           p.write_text(s, encoding="utf-8")
-          assert "bangla-ai-assistant-backend.onrender.com" in s, "Backend URL was not found/configured in MainActivity"
-          print(f"Configured backend in {p}")
+          source=Path("aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt").read_text(encoding="utf-8")
+          assert 'বাংলায় উত্তর তৈরি করা যায়নি' in source
+          assert 'bengaliVoiceReady' in source
+          assert 'Reply ONLY in Bengali' in source
+          assert 'ic_launcher' in p.read_text(encoding="utf-8")
+          print("Bengali-only speech guard, redesigned UI and launcher icon verified.")
           PY
 
       - name: Package unpacked source for implementation review
