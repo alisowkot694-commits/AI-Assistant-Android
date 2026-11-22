@@ -45,6 +45,7 @@ jobs:
           import android.provider.Settings
           import android.speech.RecognizerIntent
           import android.speech.tts.TextToSpeech
+          import android.speech.tts.UtteranceProgressListener
           import android.view.Gravity
           import android.view.View
           import android.widget.*
@@ -57,8 +58,12 @@ jobs:
           class MainActivity : Activity(), TextToSpeech.OnInitListener {
               private lateinit var answer: TextView
               private lateinit var input: EditText
+              private lateinit var statusLabel: TextView
               private lateinit var tts: TextToSpeech
-              private var bengaliVoiceReady = false
+              private var ttsReady = false
+              private var selectedVoiceReady = false
+              private var pendingSpeech: String? = null
+              private var selectedLanguage = "bn"
               private val io = Executors.newSingleThreadExecutor()
               private val prefs by lazy { getSharedPreferences("assistant", MODE_PRIVATE) }
               private val navy = Color.rgb(9, 24, 64)
@@ -92,11 +97,11 @@ jobs:
                       setPadding(0, 8, 0, 0)
                   })
                   root.addView(header, LinearLayout.LayoutParams(-1, -2))
-                  val status = TextView(this).apply {
-                      text = "●  বাংলা কথোপকথনের জন্য প্রস্তুত"; textSize = 13f
+                  statusLabel = TextView(this).apply {
+                      text = "●  বাংলা কণ্ঠস্বর প্রস্তুত হচ্ছে…"; textSize = 13f
                       setTextColor(Color.rgb(120, 245, 206)); setPadding(4, 14, 4, 10)
                   }
-                  root.addView(status)
+                  root.addView(statusLabel)
                   val answerCard = LinearLayout(this).apply {
                       orientation = LinearLayout.VERTICAL; setPadding(16, 14, 16, 14)
                       background = rounded(Color.rgb(247, 250, 255), 20)
@@ -133,6 +138,8 @@ jobs:
                   tools.addView(actionButton("সার্ভার", Color.rgb(74, 95, 126)) { setServer() },
                       LinearLayout.LayoutParams(0, 48, 1f).apply { leftMargin = 4 })
                   root.addView(tools)
+                  root.addView(actionButton("🌐 ভাষা নির্বাচন: বাংলা / English", Color.rgb(55, 100, 155)) { chooseLanguage() },
+                      LinearLayout.LayoutParams(-1, 48).apply { topMargin = 8 })
                   setContentView(root)
               }
 
@@ -148,43 +155,74 @@ jobs:
 
               override fun onInit(status: Int) {
                   if (status != TextToSpeech.SUCCESS) {
-                      runOnUiThread { Toast.makeText(this, "ফোনের Text-to-Speech সেবা চালু করা যায়নি।", Toast.LENGTH_LONG).show() }
+                      runOnUiThread {
+                          statusLabel.text = "●  ফোনের কথা বলার সেবা চালু হয়নি"
+                          Toast.makeText(this, "ফোনের Text-to-Speech সেবা চালু করা যায়নি।", Toast.LENGTH_LONG).show()
+                      }
                       return
                   }
-                  // Select an actual Bengali voice. Do not allow Android TTS to silently fall back to English.
-                  val bengaliVoices = try {
-                      tts.voices?.filter { it.locale.language.equals("bn", ignoreCase = true) }
-                          ?.sortedByDescending { it.quality }.orEmpty()
-                  } catch (_: Exception) { emptyList() }
-                  bengaliVoiceReady = false
-                  for (voice in bengaliVoices) {
-                      try {
+                  ttsReady = true
+                  tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                      override fun onStart(id: String?) { runOnUiThread { statusLabel.text = "●  উত্তর মুখে বলছে…" } }
+                      override fun onDone(id: String?) { runOnUiThread { statusLabel.text = "●  কথা বলা শেষ" } }
+                      @Deprecated("Deprecated in Java")
+                      override fun onError(id: String?) { runOnUiThread { statusLabel.text = "●  কণ্ঠস্বর চালু হয়নি" } }
+                  })
+                  selectedLanguage = prefs.getString("language", "bn") ?: "bn"
+                  configureVoice()
+                  pendingSpeech?.let { queued -> pendingSpeech = null; speak(queued) }
+              }
+
+              private fun configureVoice() {
+                  if (!ttsReady) return
+                  val locale = Locale.forLanguageTag(if (selectedLanguage == "en") "en-US" else "bn-BD")
+                  selectedVoiceReady = false
+                  try {
+                      val voices = tts.voices.orEmpty().filter {
+                          it.locale.language.equals(locale.language, ignoreCase = true)
+                      }.sortedWith(compareBy<android.speech.tts.Voice> { it.isNetworkConnectionRequired }.thenByDescending { it.quality })
+                      val voice = voices.firstOrNull()
+                      if (voice != null) {
                           tts.voice = voice
-                          if (tts.language?.language.equals("bn", ignoreCase = true)) {
-                              bengaliVoiceReady = true
-                              break
-                          }
-                      } catch (_: Exception) {}
-                  }
-                  if (!bengaliVoiceReady) {
-                      val result = tts.setLanguage(Locale.forLanguageTag("bn-BD"))
-                      bengaliVoiceReady = result != TextToSpeech.LANG_MISSING_DATA &&
-                          result != TextToSpeech.LANG_NOT_SUPPORTED &&
-                          tts.language?.language.equals("bn", ignoreCase = true)
-                  }
-                  if (!bengaliVoiceReady) runOnUiThread {
-                      Toast.makeText(this, "বাংলা কণ্ঠস্বর নেই। ফোনে Bengali voice data ইনস্টল করুন।", Toast.LENGTH_LONG).show()
-                      try { startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)) } catch (_: Exception) {}
+                          selectedVoiceReady = tts.language?.language.equals(locale.language, ignoreCase = true)
+                      } else {
+                          val result = tts.setLanguage(locale)
+                          selectedVoiceReady = result != TextToSpeech.LANG_MISSING_DATA &&
+                              result != TextToSpeech.LANG_NOT_SUPPORTED &&
+                              tts.language?.language.equals(locale.language, ignoreCase = true)
+                      }
+                  } catch (_: Exception) { selectedVoiceReady = false }
+                  runOnUiThread {
+                      if (selectedVoiceReady) {
+                          statusLabel.text = if (selectedLanguage == "en") "●  English voice ready" else "●  বাংলা কণ্ঠস্বর প্রস্তুত"
+                      } else {
+                          statusLabel.text = if (selectedLanguage == "en") "●  English voice unavailable" else "●  বাংলা কণ্ঠস্বর ইনস্টল করতে হবে"
+                          Toast.makeText(this, if (selectedLanguage == "en") "ফোনে English voice data ইনস্টল করুন।" else "ফোনে বাংলা কণ্ঠস্বর (Bengali voice data) ইনস্টল করুন।", Toast.LENGTH_LONG).show()
+                          try { startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)) } catch (_: Exception) {}
+                      }
                   }
               }
 
+              private fun chooseLanguage() {
+                  val options = arrayOf("বাংলা", "English")
+                  AlertDialog.Builder(this).setTitle("অ্যাপের ভাষা নির্বাচন করুন")
+                      .setSingleChoiceItems(options, if (selectedLanguage == "en") 1 else 0) { dialog, which ->
+                          selectedLanguage = if (which == 1) "en" else "bn"
+                          prefs.edit().putString("language", selectedLanguage).apply()
+                          dialog.dismiss()
+                          configureVoice()
+                          show(if (selectedLanguage == "bn") "বাংলা ভাষা নির্বাচন করা হয়েছে। বাংলা উত্তর ও বাংলা কণ্ঠস্বর ব্যবহার হবে।" else "English selected. Replies and voice will use English.")
+                      }.setNegativeButton("বন্ধ", null).show()
+              }
+
               private fun startVoice() {
+                  val lang = if (selectedLanguage == "en") "en-US" else "bn-BD"
                   val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                       putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                      putExtra(RecognizerIntent.EXTRA_LANGUAGE, "bn-BD")
-                      putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "bn-BD")
+                      putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)
+                      putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang)
                       putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
-                      putExtra(RecognizerIntent.EXTRA_PROMPT, "বাংলায় বলুন")
+                      putExtra(RecognizerIntent.EXTRA_PROMPT, if (selectedLanguage == "en") "Speak in English" else "বাংলায় বলুন")
                   }
                   try { startActivityForResult(intent, 410) }
                   catch (_: Exception) { show("এই ফোনে বাংলা ভয়েস ইনপুট সেবা পাওয়া যাচ্ছে না।") }
@@ -209,7 +247,11 @@ jobs:
                           val conn = URL(endpoint.trimEnd('/') + "/chat").openConnection() as HttpURLConnection
                           conn.requestMethod = "POST"; conn.connectTimeout = 20000; conn.readTimeout = 60000
                           conn.doOutput = true; conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                          val prompt = "LANGUAGE REQUIREMENT: Reply ONLY in Bengali language using Bengali script. Never use English unless the user explicitly asks for English. You are a friendly Bengali voice assistant.\nUser message: " + message
+                          val useBengali = message.any { it in '\\u0980'..'\\u09FF' } || selectedLanguage == "bn"
+                          val prompt = if (useBengali)
+                              "LANGUAGE REQUIREMENT: Reply ONLY in natural Bengali using Bengali script. You are a friendly Bengali voice assistant.\\nUser message: " + message
+                          else
+                              "LANGUAGE REQUIREMENT: Reply in clear natural English. You are a friendly voice assistant.\\nUser message: " + message
                           conn.outputStream.use { it.write(JSONObject().put("message", prompt).toString().toByteArray(Charsets.UTF_8)) }
                           val code = conn.responseCode
                           val stream = if (code in 200..299) conn.inputStream else conn.errorStream
@@ -267,11 +309,17 @@ jobs:
 
               private fun show(text: String) { answer.text = text }
               private fun speak(text: String) {
-                  if (!bengaliVoiceReady) {
-                      Toast.makeText(this, "বাংলা কণ্ঠস্বর চালু নেই—ইংরেজিতে পড়ে শোনানো বন্ধ রাখা হয়েছে।", Toast.LENGTH_LONG).show()
+                  if (!ttsReady) { pendingSpeech = text; return }
+                  if (!selectedVoiceReady) {
+                      statusLabel.text = "●  কণ্ঠস্বর পাওয়া যায়নি—ভাষা সেটিংস পরীক্ষা করুন"
+                      Toast.makeText(this, "নির্বাচিত ভাষার কণ্ঠস্বর ফোনে ইনস্টল নেই। ভাষা নির্বাচন থেকে আবার চেষ্টা করুন।", Toast.LENGTH_LONG).show()
                       return
                   }
-                  if (::tts.isInitialized) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "reply")
+                  val result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "assistant_reply")
+                  if (result == TextToSpeech.ERROR) {
+                      statusLabel.text = "●  কথা বলা যায়নি"
+                      Toast.makeText(this, "কণ্ঠস্বর চালু করতে সমস্যা হয়েছে।", Toast.LENGTH_LONG).show()
+                  }
               }
               override fun onDestroy() {
                   if (::tts.isInitialized) tts.shutdown()
