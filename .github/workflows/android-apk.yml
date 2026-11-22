@@ -34,6 +34,23 @@ jobs:
           sed -i 's#https://your-backend.example.com#https://bangla-ai-assistant-backend.onrender.com#g' "$TARGET"
           grep -q 'https://bangla-ai-assistant-backend.onrender.com' "$TARGET"
 
+      - name: Package unpacked source for implementation review
+        run: |
+          set -eux
+          mkdir -p source-review
+          cp -R aiassistant_work/app/src source-review/
+          cp aiassistant_work/settings.gradle.kts source-review/
+          cp aiassistant_work/build.gradle.kts source-review/ 2>/dev/null || true
+          cd source-review
+          zip -qr ../android-source-review.zip .
+      - name: Upload source review
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-source-review
+          path: android-source-review.zip
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Align Java and Kotlin JVM targets
         run: |
           cat > aiassistant_work/app/build.gradle.kts <<'EOF'
