@@ -151,12 +151,27 @@ jobs:
                       runOnUiThread { Toast.makeText(this, "ফোনের Text-to-Speech সেবা চালু করা যায়নি।", Toast.LENGTH_LONG).show() }
                       return
                   }
-                  var result = tts.setLanguage(Locale.forLanguageTag("bn-BD"))
-                  if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                      result = tts.setLanguage(Locale.forLanguageTag("bn-IN"))
+                  // Select an actual Bengali voice. Do not allow Android TTS to silently fall back to English.
+                  val bengaliVoices = try {
+                      tts.voices?.filter { it.locale.language.equals("bn", ignoreCase = true) }
+                          ?.sortedByDescending { it.quality }.orEmpty()
+                  } catch (_: Exception) { emptyList() }
+                  bengaliVoiceReady = false
+                  for (voice in bengaliVoices) {
+                      try {
+                          tts.voice = voice
+                          if (tts.language?.language.equals("bn", ignoreCase = true)) {
+                              bengaliVoiceReady = true
+                              break
+                          }
+                      } catch (_: Exception) {}
                   }
-                  bengaliVoiceReady = result != TextToSpeech.LANG_MISSING_DATA &&
-                      result != TextToSpeech.LANG_NOT_SUPPORTED && result >= TextToSpeech.LANG_AVAILABLE
+                  if (!bengaliVoiceReady) {
+                      val result = tts.setLanguage(Locale.forLanguageTag("bn-BD"))
+                      bengaliVoiceReady = result != TextToSpeech.LANG_MISSING_DATA &&
+                          result != TextToSpeech.LANG_NOT_SUPPORTED &&
+                          tts.language?.language.equals("bn", ignoreCase = true)
+                  }
                   if (!bengaliVoiceReady) runOnUiThread {
                       Toast.makeText(this, "বাংলা কণ্ঠস্বর নেই। ফোনে Bengali voice data ইনস্টল করুন।", Toast.LENGTH_LONG).show()
                       try { startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)) } catch (_: Exception) {}
