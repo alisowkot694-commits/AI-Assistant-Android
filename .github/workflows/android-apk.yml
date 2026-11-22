@@ -247,11 +247,11 @@ jobs:
                           val conn = URL(endpoint.trimEnd('/') + "/chat").openConnection() as HttpURLConnection
                           conn.requestMethod = "POST"; conn.connectTimeout = 20000; conn.readTimeout = 60000
                           conn.doOutput = true; conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                          val useBengali = message.any { it in '\\u0980'..'\\u09FF' } || selectedLanguage == "bn"
+                          val useBengali = message.any { it in '\u0980'..'\u09FF' } || selectedLanguage == "bn"
                           val prompt = if (useBengali)
-                              "LANGUAGE REQUIREMENT: Reply ONLY in natural Bengali using Bengali script. You are a friendly Bengali voice assistant.\\nUser message: " + message
+                              "LANGUAGE REQUIREMENT: Reply ONLY in natural Bengali using Bengali script. You are a friendly Bengali voice assistant.\nUser message: " + message
                           else
-                              "LANGUAGE REQUIREMENT: Reply in clear natural English. You are a friendly voice assistant.\\nUser message: " + message
+                              "LANGUAGE REQUIREMENT: Reply in clear natural English. You are a friendly voice assistant.\nUser message: " + message
                           conn.outputStream.use { it.write(JSONObject().put("message", prompt).toString().toByteArray(Charsets.UTF_8)) }
                           val code = conn.responseCode
                           val stream = if (code in 200..299) conn.inputStream else conn.errorStream
