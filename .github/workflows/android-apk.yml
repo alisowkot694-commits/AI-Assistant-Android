@@ -73,7 +73,7 @@ jobs:
           }
 
           android {
-              namespace = "com.aiassistant.app"
+              namespace = "com.banglaassistant"
               compileSdk = 34
               defaultConfig {
                   applicationId = "com.aiassistant.app"
