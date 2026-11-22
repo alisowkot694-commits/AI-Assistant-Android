@@ -42,6 +42,25 @@ jobs:
           assert 'prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")' in s
           PY
           grep -q 'https://bangla-ai-assistant-backend.onrender.com' "$TARGET"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("aiassistant_work/app/src/main/java/com/banglaassistant/MainActivity.kt")
+          s = p.read_text(encoding="utf-8")
+          old = 'prefs.getString("endpoint", "")!!.trim()'
+          new = 'prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim()'
+          assert old in s, "AI endpoint preference read not found"
+          s = s.replace(old, new)
+          old = 'setText(prefs.getString("endpoint", ""))'
+          new = 'setText(prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com"))'
+          assert old in s, "server settings default not found"
+          s = s.replace(old, new)
+          old = 'val reply = JSONObject(body).optString("reply", "উত্তর পাওয়া যায়নি।")'
+          new = 'val payload = JSONObject(body)\n                val reply = payload.optString("reply").ifBlank { payload.optString("error", "উত্তর পাওয়া যায়নি।") }'
+          assert old in s, "chat response parser not found"
+          s = s.replace(old, new)
+          p.write_text(s, encoding="utf-8")
+          print("Backend URL default and server error reporting configured")
+          PY
 
       - name: Package unpacked source for implementation review
         run: |
