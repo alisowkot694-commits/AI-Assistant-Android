@@ -450,7 +450,9 @@ jobs:
               override fun onCreate() {
                   super.onCreate()
                   createNotification()
-                  startForeground(7412, Notification.Builder(this, channelId)
+                  val notification = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, channelId)
+                      else Notification.Builder(this)
+                  startForeground(7412, notification
                       .setSmallIcon(android.R.drawable.ic_dialog_info)
                       .setContentTitle("AI HACK চালু আছে")
                       .setContentText("ভাসমান সহকারী স্ক্রিনে প্রস্তুত")
@@ -586,7 +588,7 @@ jobs:
           for permission in ["android.permission.SYSTEM_ALERT_WINDOW","android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE"]:
               tag=f'<uses-permission android:name="{permission}" />'
               if tag not in manifest_text:
-                  manifest_text=manifest_text.replace("<application", tag+"\\n    <application", 1)
+                  manifest_text=manifest_text.replace("<application", tag+"\n    <application", 1)
           if "FloatingButtonService" not in manifest_text:
               manifest_text=manifest_text.replace("</application>", '''<service
                       android:name=".FloatingButtonService"
