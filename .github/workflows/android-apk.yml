@@ -145,6 +145,12 @@ jobs:
                   root.addView(actionButton("🔊 কণ্ঠ পরীক্ষা করুন", Color.rgb(24, 135, 118)) {
                       speak(if (selectedLanguage == "en") "Hello! Your voice is working." else "আসসালামু আলাইকুম। বাংলা কণ্ঠস্বর ঠিকভাবে কাজ করছে।")
                   }, LinearLayout.LayoutParams(-1, 48).apply { topMargin = 8 })
+                  val developerRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                  developerRow.addView(actionButton("🛠 Developer Mode", Color.rgb(70, 78, 135)) { developerMode() },
+                      LinearLayout.LayoutParams(0, 50, 1f).apply { rightMargin = 5 })
+                  developerRow.addView(actionButton("▶ Start All Tasks", Color.rgb(19, 139, 111)) { startAllTasks() },
+                      LinearLayout.LayoutParams(0, 50, 1f).apply { leftMargin = 5 })
+                  root.addView(developerRow, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
                   setContentView(root)
               }
               private fun rounded(color: Int, radius: Int): GradientDrawable =                  GradientDrawable().apply { setColor(color); cornerRadius = radius.toFloat() }
@@ -353,6 +359,67 @@ jobs:
                   val selected = apps.firstOrNull { app -> app.first.any { text.contains(it) } } ?: return false
                   launchApp(selected.second, selected.third)
                   return true
+              }
+
+              private fun developerMode() {
+                  val options = arrayOf("Start All Tasks — ফোন ও সার্ভার পরীক্ষা", "AI উত্তর / API পরীক্ষা", "GitHub-এ APK Build খুলুন", "Render Backend খুলুন")
+                  AlertDialog.Builder(this).setTitle("AI HACK — Developer Mode")
+                      .setMessage("এখান থেকে নিরাপদ ডায়াগনস্টিক চালানো যাবে। GitHub/Render-এর গোপন অনুমোদন অ্যাপের মধ্যে রাখা হয় না।")
+                      .setItems(options) { _, which ->
+                          when (which) {
+                              0 -> startAllTasks()
+                              1 -> testAiConnection()
+                              2 -> openDeveloperUrl("https://github.com/alisowkot694-commits/AI-Assistant-Android/actions")
+                              3 -> openDeveloperUrl("https://dashboard.render.com/web/srv-dc18tqafngtc73evr1s0")
+                          }
+                      }.setNegativeButton("বন্ধ", null).show()
+              }
+
+              private fun openDeveloperUrl(address: String) {
+                  try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(address))) }
+                  catch (_: Exception) { show("লিংক খোলা যায়নি।") }
+              }
+
+              private fun startAllTasks() {
+                  val overlay = if (Settings.canDrawOverlays(this)) "ভাসমান বাটন: অনুমতি দেওয়া আছে" else "ভাসমান বাটন: অনুমতি দিতে হবে"
+                  val mic = if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) "মাইক্রোফোন: অনুমতি দেওয়া আছে" else "মাইক্রোফোন: অনুমতি পরীক্ষা/চালু করতে হবে"
+                  val voice = if (ttsReady && selectedVoiceReady) "কণ্ঠস্বর: প্রস্তুত" else "কণ্ঠস্বর: ফোনে ভাষার voice data লাগতে পারে"
+                  show("AI HACK — স্বয়ংক্রিয় পরীক্ষা চলছে…\n\n$overlay\n$mic\n$voice\nসার্ভার: পরীক্ষা হচ্ছে…")
+                  io.execute {
+                      var server = "সার্ভার: সংযোগ হয়নি"
+                      try {
+                          val endpoint = prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim().trimEnd('/')
+                          val conn = URL("$endpoint/health").openConnection() as HttpURLConnection
+                          conn.requestMethod = "GET"; conn.connectTimeout = 12000; conn.readTimeout = 15000
+                          val code = conn.responseCode
+                          server = if (code in 200..299) "সার্ভার: অনলাইন (HTTP $code)" else "সার্ভার: সমস্যা (HTTP $code)"
+                          conn.disconnect()
+                      } catch (_: Exception) {}
+                      val report = "AI HACK — পরীক্ষার ফলাফল\n\n$overlay\n$mic\n$voice\n$server\n\nনোট: এই পরীক্ষা GitHub build/deploy চালায় না। GitHub-এর অনুমোদিত Build পেজ Developer Mode থেকে খুলতে হবে।"
+                      runOnUiThread { show(report); statusLabel.text = "●  ডায়াগনস্টিক শেষ" }
+                  }
+              }
+
+              private fun testAiConnection() {
+                  show("AI সার্ভারের উত্তর পরীক্ষা হচ্ছে…")
+                  io.execute {
+                      var report: String
+                      try {
+                          val endpoint = prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim().trimEnd('/')
+                          val conn = URL("$endpoint/chat").openConnection() as HttpURLConnection
+                          conn.requestMethod = "POST"; conn.connectTimeout = 15000; conn.readTimeout = 30000
+                          conn.doOutput = true; conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                          conn.outputStream.use { it.write(JSONObject().put("message", "শুধু 'ঠিক আছে' লিখে উত্তর দাও।").toString().toByteArray(Charsets.UTF_8)) }
+                          val code = conn.responseCode
+                          val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+                          val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+                          val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                          report = if (code in 200..299) "AI API কাজ করছে।\n\n" + (json.optString("reply").ifBlank { json.optString("text") }) else
+                              "AI API উত্তর দেয়নি (HTTP $code)।\n" + json.optString("error", "সার্ভার থেকে ত্রুটি এসেছে।")
+                          conn.disconnect()
+                      } catch (_: Exception) { report = "AI সার্ভার পরীক্ষা করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করুন।" }
+                      runOnUiThread { show(report); statusLabel.text = "●  AI সংযোগ পরীক্ষা শেষ" }
+                  }
               }
 
               private fun setServer() {
