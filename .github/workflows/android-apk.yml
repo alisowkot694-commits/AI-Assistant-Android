@@ -270,7 +270,7 @@ jobs:
                               val detail = payload.optString("error")
                               reply = if (detail.contains("OPENAI_API_KEY", true))
                                   "AI সার্ভারের চাবি (API Key) এখনো সেট করা হয়নি। তাই AI উত্তর দিতে পারছে না।"
-                              else "AI সার্ভারে সমস্যা হয়েছে। একটু পরে আবার চেষ্টা করুন।"
+                              else "AI সার্ভারের উত্তর: " + (detail.ifBlank { "HTTP " + code + " — অনুগ্রহ করে Render লগ পরীক্ষা করুন।" })
                           }
                           val bengaliInput = message.any { it in '\u0980'..'\u09FF' }
                           val bengaliReply = reply.any { it in '\u0980'..'\u09FF' }
