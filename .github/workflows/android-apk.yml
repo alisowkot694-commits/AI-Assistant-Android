@@ -88,11 +88,11 @@ jobs:
                       background = rounded(Color.rgb(18, 67, 145), 26)
                   }
                   header.addView(TextView(this).apply {
-                      text = "✦  বাংলা AI সহকারী  ✦"; textSize = 25f
+                      text = "👑  AI HACK  👑"; textSize = 29f
                       setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
                   })
                   header.addView(TextView(this).apply {
-                      text = "আপনার ভাষায় কথা বলুন • লিখুন • জানুন"; textSize = 14f
+                      text = "30 Seconds Color Trading"; textSize = 15f
                       setTextColor(Color.rgb(205, 235, 255)); gravity = Gravity.CENTER
                       setPadding(0, 8, 0, 0)
                   })
@@ -388,16 +388,19 @@ jobs:
           cat > aiassistant_work/app/src/main/res/drawable/ic_launcher.xml <<'XML'
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
               android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-              <path android:fillColor="#071B55" android:pathData="M0,0h108v108h-108z"/>
-              <path android:fillColor="#0879D9" android:pathData="M54,5a49,49 0,1 0,0 98a49,49 0,1 0,0 -98"/>
-              <path android:fillColor="#12D8CE" android:pathData="M54,10a44,44 0,1 0,0 88a44,44 0,1 0,0 -88"/>
-              <path android:fillColor="#FFFFFF" android:pathData="M29,31a25,25 0,0 1,50 0v25a25,25 0,0 1,-50 0z"/>
-              <path android:fillColor="#061A43" android:pathData="M34,35a20,20 0,0 1,40 0v18a20,20 0,0 1,-40 0z"/>
-              <path android:fillColor="#22E5F0" android:pathData="M42,44a4,5 0,1 0,0 10a4,5 0,1 0,0 -10 M62,44a4,5 0,1 0,0 10a4,5 0,1 0,0 -10 M45,61q9,10 18,0z"/>
-              <path android:fillColor="#FFFFFF" android:pathData="M24,36h7v20h-7z M77,36h7v20h-7z"/>
-              <path android:fillColor="#FFFFFF" android:pathData="M47,71h14v21h-14z"/>
-              <path android:fillColor="#20D9C4" android:pathData="M39,77q-13,-3 -14,-15q13,2 18,12z M69,77q13,-3 14,-15q-13,2 -18,12z"/>
-              <path android:fillColor="#F8D56B" android:pathData="M83,17l2,6 6,2 -6,2 -2,6 -2,-6 -6,-2 6,-2z"/>
+              <path android:fillColor="#07132F" android:pathData="M0,0h108v108h-108z"/>
+              <path android:fillColor="#102B68" android:pathData="M54,5a49,49 0,1 0,0 98a49,49 0,1 0,0 -98"/>
+              <path android:fillColor="#12CFF0" android:pathData="M54,9a45,45 0,1 0,0 90a45,45 0,1 0,0 -90"/>
+              <path android:fillColor="#071A46" android:pathData="M54,14a40,40 0,1 0,0 80a40,40 0,1 0,0 -80"/>
+              <path android:fillColor="#FFD45C" android:pathData="M30,25l5,-17 17,12 17,-12 8,17z"/>
+              <path android:fillColor="#FFF1A8" android:pathData="M30,25h47v7h-47z"/>
+              <path android:fillColor="#FFFFFF" android:pathData="M28,42a26,26 0,0 1,52 0v20a26,26 0,0 1,-52 0z"/>
+              <path android:fillColor="#061637" android:pathData="M33,44a21,21 0,0 1,42 0v14a21,21 0,0 1,-42 0z"/>
+              <path android:fillColor="#15E8F4" android:pathData="M42,48a4,5 0,1 0,0 10a4,5 0,1 0,0 -10 M62,48a4,5 0,1 0,0 10a4,5 0,1 0,0 -10"/>
+              <path android:fillColor="#15E8F4" android:pathData="M43,65q11,9 22,0l-2,5q-9,8 -18,0z"/>
+              <path android:fillColor="#FFFFFF" android:pathData="M20,44h8v20h-8z M80,44h8v20h-8z"/>
+              <path android:fillColor="#19D9B5" android:pathData="M25,84h8v9h-8z M38,77h8v16h-8z M51,69h8v24h-8z"/>
+              <path android:fillColor="#F6C84B" android:pathData="M80,17l2,5 5,2 -5,2 -2,5 -2,-5 -5,-2 5,-2z"/>
           </vector>
           XML
           python3 - <<'PY'
@@ -418,6 +421,7 @@ jobs:
                   <package android:name="org.telegram.messenger" />
               </queries>\n"""
               s = s.replace("<application", queries + chr(10) + "    <application", 1)
+          s = s.replace('android:label="AI Assistant"', 'android:label="AI HACK"')
           p.write_text(s, encoding="utf-8")
           source=next(Path("aiassistant_work/app/src/main/java").rglob("MainActivity.kt")).read_text(encoding="utf-8")
           assert 'chooseLanguage()' in source
