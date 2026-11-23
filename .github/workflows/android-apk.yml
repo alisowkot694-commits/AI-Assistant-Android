@@ -19,7 +19,7 @@ jobs:
       - name: Unpack Android project
         run: |
           set -eux
-          ZIP_FILE="$(find . -maxdepth 1 -type f -name 'AI-Assistant-Android-BIG-SMALL-Source*.zip' | head -n 1)"
+          ZIP_FILE="AI-Assistant-Android-BIG-SMALL-Source(1)(1).zip"
           test -n "$ZIP_FILE"
           unzip -o "$ZIP_FILE" -d .
           test -f aiassistant_work/settings.gradle.kts
