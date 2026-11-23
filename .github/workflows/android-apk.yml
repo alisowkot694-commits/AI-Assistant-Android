@@ -423,6 +423,182 @@ jobs:
               s = s.replace("<application", queries + chr(10) + "    <application", 1)
           s = s.replace('android:label="AI Assistant"', 'android:label="AI HACK"')
           p.write_text(s, encoding="utf-8")
+          # Install a large, draggable floating assistant overlay and persistent notification service.
+          java_root=Path("aiassistant_work/app/src/main/java")
+          main_file=next(java_root.rglob("MainActivity.kt"))
+          service_file=main_file.parent / "FloatingButtonService.kt"
+          service_file.write_text(r'''package com.banglaassistant
+
+          import android.app.*
+          import android.content.*
+          import android.graphics.Color
+          import android.graphics.PixelFormat
+          import android.graphics.Typeface
+          import android.graphics.drawable.GradientDrawable
+          import android.os.Build
+          import android.os.IBinder
+          import android.view.*
+          import android.widget.*
+
+          class FloatingButtonService : Service() {
+              private lateinit var wm: WindowManager
+              private var bubble: View? = null
+              private var panel: View? = null
+              private lateinit var bubbleParams: WindowManager.LayoutParams
+              private val channelId = "ai_hack_floating"
+
+              override fun onCreate() {
+                  super.onCreate()
+                  createNotification()
+                  startForeground(7412, Notification.Builder(this, channelId)
+                      .setSmallIcon(android.R.drawable.ic_dialog_info)
+                      .setContentTitle("AI HACK চালু আছে")
+                      .setContentText("ভাসমান সহকারী স্ক্রিনে প্রস্তুত")
+                      .setOngoing(true).build())
+                  wm = getSystemService(WINDOW_SERVICE) as WindowManager
+                  showBubble()
+              }
+
+              private fun createNotification() {
+                  if (Build.VERSION.SDK_INT >= 26) {
+                      val channel = NotificationChannel(channelId, "AI HACK Floating Assistant", NotificationManager.IMPORTANCE_LOW)
+                      getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+                  }
+              }
+
+              private fun overlayType(): Int =
+                  if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                  else WindowManager.LayoutParams.TYPE_PHONE
+
+              private fun params(width: Int, height: Int): WindowManager.LayoutParams =
+                  WindowManager.LayoutParams(width, height, overlayType(),
+                      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                      PixelFormat.TRANSLUCENT).apply {
+                      gravity = Gravity.TOP or Gravity.START
+                      x = 18; y = 220
+                  }
+
+              private fun showBubble() {
+                  val size = (88 * resources.displayMetrics.density).toInt()
+                  val face = TextView(this).apply {
+                      text = "👑\n🤖"
+                      textSize = 27f
+                      gravity = Gravity.CENTER
+                      setTextColor(Color.WHITE)
+                      typeface = Typeface.DEFAULT_BOLD
+                      background = GradientDrawable().apply {
+                          shape = GradientDrawable.OVAL
+                          setColor(Color.rgb(8, 31, 83))
+                          setStroke((4 * resources.displayMetrics.density).toInt(), Color.rgb(28, 220, 239))
+                      }
+                      elevation = 14f
+                  }
+                  bubble = face
+                  bubbleParams = params(size, size)
+                  var downX = 0f; var downY = 0f; var startX = 0; var startY = 0; var moved = false
+                  face.setOnTouchListener { _, event ->
+                      when (event.action) {
+                          MotionEvent.ACTION_DOWN -> {
+                              downX = event.rawX; downY = event.rawY
+                              startX = bubbleParams.x; startY = bubbleParams.y; moved = false
+                              true
+                          }
+                          MotionEvent.ACTION_MOVE -> {
+                              val dx = (event.rawX - downX).toInt()
+                              val dy = (event.rawY - downY).toInt()
+                              if (kotlin.math.abs(dx) > 8 || kotlin.math.abs(dy) > 8) moved = true
+                              bubbleParams.x = startX + dx; bubbleParams.y = startY + dy
+                              try { wm.updateViewLayout(face, bubbleParams) } catch (_: Exception) {}
+                              true
+                          }
+                          MotionEvent.ACTION_UP -> {
+                              if (!moved) togglePanel()
+                              true
+                          }
+                          else -> true
+                      }
+                  }
+                  wm.addView(face, bubbleParams)
+              }
+
+              private fun togglePanel() {
+                  if (panel != null) {
+                      try { wm.removeView(panel) } catch (_: Exception) {}
+                      panel = null
+                      return
+                  }
+                  val card = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(18, 16, 18, 16)
+                      background = GradientDrawable().apply {
+                          setColor(Color.rgb(8, 24, 61)); cornerRadius = 24f
+                          setStroke(3, Color.rgb(24, 205, 220))
+                      }
+                      elevation = 18f
+                  }
+                  card.addView(TextView(this).apply {
+                      text = "👑  AI HACK"
+                      textSize = 21f; gravity = Gravity.CENTER
+                      setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD
+                  })
+                  card.addView(TextView(this).apply {
+                      text = "30 Seconds Color Trading"
+                      textSize = 12f; gravity = Gravity.CENTER
+                      setTextColor(Color.rgb(160, 225, 255))
+                  })
+                  card.addView(TextView(this).apply {
+                      text = "WAIT\nবিশ্বস্ত লাইভ ডেটা না থাকায়\nএখন কোনো সিগন্যাল দেওয়া হচ্ছে না"
+                      textSize = 17f; gravity = Gravity.CENTER
+                      setTextColor(Color.rgb(255, 220, 105))
+                      setPadding(8, 18, 8, 18)
+                  })
+                  val open = Button(this).apply {
+                      text = "AI Assistant খুলুন"; isAllCaps = false
+                      setOnClickListener {
+                          val i = Intent(this@FloatingButtonService, MainActivity::class.java)
+                              .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                          startActivity(i)
+                      }
+                  }
+                  card.addView(open)
+                  card.addView(Button(this).apply {
+                      text = "বন্ধ করুন"; isAllCaps = false
+                      setOnClickListener { togglePanel() }
+                  })
+                  panel = card
+                  val p = params((300 * resources.displayMetrics.density).toInt(), WindowManager.LayoutParams.WRAP_CONTENT)
+                  p.x = 18; p.y = (bubbleParams.y + 96 * resources.displayMetrics.density).toInt()
+                  try { wm.addView(card, p) } catch (_: Exception) { panel = null }
+              }
+
+              override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+              override fun onDestroy() {
+                  try { panel?.let { wm.removeView(it) } } catch (_: Exception) {}
+                  try { bubble?.let { wm.removeView(it) } } catch (_: Exception) {}
+                  panel = null; bubble = null
+                  super.onDestroy()
+              }
+              override fun onBind(intent: Intent?): IBinder? = null
+          }
+          ''', encoding="utf-8")
+          manifest_path=Path("aiassistant_work/app/src/main/AndroidManifest.xml")
+          manifest_text=manifest_path.read_text(encoding="utf-8")
+          for permission in ["android.permission.SYSTEM_ALERT_WINDOW","android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE"]:
+              tag=f'<uses-permission android:name="{permission}" />'
+              if tag not in manifest_text:
+                  manifest_text=manifest_text.replace("<application", tag+"\\n    <application", 1)
+          if "FloatingButtonService" not in manifest_text:
+              manifest_text=manifest_text.replace("</application>", '''<service
+                      android:name=".FloatingButtonService"
+                      android:exported="false"
+                      android:stopWithTask="false"
+                      android:foregroundServiceType="specialUse">
+                      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                          android:value="Persistent floating AI assistant overlay" />
+                  </service>
+              </application>''')
+          manifest_path.write_text(manifest_text, encoding="utf-8")
+          print("Installed 88dp draggable floating AI HACK bubble, WAIT-first overlay card, and persistent foreground service.")
           source=next(Path("aiassistant_work/app/src/main/java").rglob("MainActivity.kt")).read_text(encoding="utf-8")
           assert 'chooseLanguage()' in source
           assert 'UtteranceProgressListener' in source
