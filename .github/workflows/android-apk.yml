@@ -77,7 +77,7 @@ jobs:
                   tts = TextToSpeech(this, this)
                   val root = LinearLayout(this).apply {
                       orientation = LinearLayout.VERTICAL
-                      setPadding(18, 18, 18, 18)
+                      setPadding(22, 22, 22, 22)
                       background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
                           intArrayOf(Color.rgb(7, 20, 55), Color.rgb(19, 56, 117), Color.rgb(8, 34, 79)))
                   }
@@ -88,7 +88,7 @@ jobs:
                       background = rounded(Color.rgb(18, 67, 145), 26)
                   }
                   header.addView(TextView(this).apply {
-                      text = "👑  AI HACK  👑"; textSize = 29f
+                      text = "👑  AI HACK  👑"; textSize = 34f
                       setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
                   })
                   header.addView(TextView(this).apply {
@@ -112,21 +112,21 @@ jobs:
                   })
                   answer = TextView(this).apply {
                       text = prefs.getString("chat_history", null) ?: "আসসালামু আলাইকুম! আমি AI HACK, আপনার বাংলা AI সঙ্গী। কীভাবে সাহায্য করতে পারি?"
-                      textSize = 17f; setTextColor(Color.rgb(20, 34, 60))
+                      textSize = 19f; setTextColor(Color.rgb(20, 34, 60))
                       setPadding(0, 10, 0, 4)
                   }
                   answerCard.addView(ScrollView(this).apply { addView(answer) },
                       LinearLayout.LayoutParams(-1, 0, 1f))
                   root.addView(answerCard, LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 14 })
                   input = EditText(this).apply {
-                      hint = "এখানে বাংলায় লিখুন…"; textSize = 16f; minLines = 2
+                      hint = "এখানে বাংলায় লিখুন…"; textSize = 18f; minLines = 3
                       setTextColor(Color.WHITE); setHintTextColor(Color.rgb(190, 210, 235))
                       setPadding(14, 12, 14, 12); background = rounded(Color.rgb(27, 54, 99), 16)
                   }
                   root.addView(input, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10 })
                   val voiceSend = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                   voiceSend.addView(actionButton("🎙  বাংলায় বলুন", cyan) { startVoice() },
-                      LinearLayout.LayoutParams(0, 54, 1f).apply { rightMargin = 6 })
+                      LinearLayout.LayoutParams(0, 66, 1f).apply { rightMargin = 6 })
                   voiceSend.addView(actionButton("পাঠান  ➤", blue) { askAI(input.text.toString()) },
                       LinearLayout.LayoutParams(0, 54, 1f).apply { leftMargin = 6 })
                   root.addView(voiceSend)
@@ -145,19 +145,15 @@ jobs:
                   root.addView(actionButton("🔊 কণ্ঠ পরীক্ষা করুন", Color.rgb(24, 135, 118)) {
                       speak(if (selectedLanguage == "en") "Hello! Your voice is working." else "আসসালামু আলাইকুম। বাংলা কণ্ঠস্বর ঠিকভাবে কাজ করছে।")
                   }, LinearLayout.LayoutParams(-1, 48).apply { topMargin = 8 })
-                  val developerRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-                  developerRow.addView(actionButton("🛠 Developer Mode", Color.rgb(70, 78, 135)) { developerMode() },
-                      LinearLayout.LayoutParams(0, 50, 1f).apply { rightMargin = 5 })
-                  developerRow.addView(actionButton("▶ Start All Tasks", Color.rgb(19, 139, 111)) { startAllTasks() },
-                      LinearLayout.LayoutParams(0, 50, 1f).apply { leftMargin = 5 })
-                  root.addView(developerRow, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
+                  root.addView(actionButton("⚙️  সব সেটিংস ও ফিচার", Color.rgb(120, 45, 170)) { openSettings() },
+                      LinearLayout.LayoutParams(-1, 64).apply { topMargin = 12 })
                   setContentView(root)
               }
               private fun rounded(color: Int, radius: Int): GradientDrawable =                  GradientDrawable().apply { setColor(color); cornerRadius = radius.toFloat() }
 
               private fun actionButton(label: String, color: Int, action: () -> Unit): Button =
                   Button(this).apply {
-                      text = label; textSize = 13f; isAllCaps = false
+                      text = label; textSize = 16f; minHeight = 60; isAllCaps = false
                       setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD
                       background = rounded(color, 16); setOnClickListener { action() }
                   }
@@ -420,6 +416,53 @@ jobs:
                       } catch (_: Exception) { report = "AI সার্ভার পরীক্ষা করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করুন।" }
                       runOnUiThread { show(report); statusLabel.text = "●  AI সংযোগ পরীক্ষা শেষ" }
                   }
+              }
+
+              private fun openSettings() {
+                  val panel = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(18, 18, 18, 18)
+                      background = rounded(Color.rgb(8, 22, 58), 22)
+                  }
+                  panel.addView(TextView(this).apply {
+                      text = "✨ AI HACK CONTROL CENTER"
+                      textSize = 22f; typeface = Typeface.DEFAULT_BOLD
+                      setTextColor(Color.rgb(100, 225, 255)); gravity = Gravity.CENTER
+                      setPadding(4, 8, 4, 14)
+                  })
+                  panel.addView(TextView(this).apply {
+                      text = "আপনার সহকারীর সব নিয়ন্ত্রণ এক জায়গায়"
+                      textSize = 15f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+                      setPadding(4, 0, 4, 16)
+                  })
+                  val scroller = ScrollView(this)
+                  val items = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                  fun setting(label: String, color: Int, action: () -> Unit) {
+                      items.addView(actionButton(label, color, action),
+                          LinearLayout.LayoutParams(-1, 62).apply { bottomMargin = 10 })
+                  }
+                  setting("🔌  AI সার্ভার সংযোগ পরীক্ষা", Color.rgb(0, 125, 180)) { testAiConnection() }
+                  setting("🌐  AI সার্ভার ঠিকানা", Color.rgb(30, 91, 190)) { setServer() }
+                  setting("🗣️  ভাষা: বাংলা / English", Color.rgb(35, 105, 165)) { chooseLanguage() }
+                  setting("🔊  কণ্ঠস্বর পরীক্ষা", Color.rgb(0, 135, 115)) {
+                      speak(if (selectedLanguage == "en") "Hello! Your voice is working." else "আসসালামু আলাইকুম। বাংলা কণ্ঠস্বর ঠিকভাবে কাজ করছে।")
+                  }
+                  setting("🪟  ভাসমান AI বাটন চালু", Color.rgb(92, 65, 170)) { enableBubble() }
+                  setting("📱  অন্য অ্যাপ খুলুন", Color.rgb(28, 115, 145)) { chooseAppToOpen() }
+                  setting("📊  BIG / SMALL পরিসংখ্যান", Color.rgb(35, 132, 112)) { bigSmall() }
+                  setting("🧪  ফোন ও সার্ভার পরীক্ষা", Color.rgb(80, 85, 155)) { startAllTasks() }
+                  setting("🛠️  Developer Mode", Color.rgb(95, 60, 145)) { developerMode() }
+                  setting("🧹  কথোপকথনের ইতিহাস মুছুন", Color.rgb(165, 55, 75)) {
+                      AlertDialog.Builder(this).setTitle("ইতিহাস মুছবেন?")
+                          .setMessage("সংরক্ষিত কথোপকথন মুছে যাবে।")
+                          .setPositiveButton("মুছুন") { _, _ ->
+                              prefs.edit().remove("chat_history").apply()
+                              answer.text = "ইতিহাস মুছে ফেলা হয়েছে। নতুন করে কথা শুরু করুন।"
+                          }.setNegativeButton("বাতিল", null).show()
+                  }
+                  scroller.addView(items)
+                  panel.addView(scroller, LinearLayout.LayoutParams(-1, 0, 1f))
+                  AlertDialog.Builder(this).setView(panel).setNegativeButton("বন্ধ", null).show()
               }
 
               private fun setServer() {
