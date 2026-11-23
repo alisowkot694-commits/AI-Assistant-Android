@@ -137,6 +137,8 @@ jobs:
                       LinearLayout.LayoutParams(0, 48, 1f).apply { leftMargin = 4; rightMargin = 4 })
                   tools.addView(actionButton("সার্ভার", Color.rgb(74, 95, 126)) { setServer() },
                       LinearLayout.LayoutParams(0, 48, 1f).apply { leftMargin = 4 })
+                  tools.addView(actionButton("অ্যাপ", Color.rgb(39, 123, 149)) { chooseAppToOpen() },
+                      LinearLayout.LayoutParams(0, 48, 1f).apply { leftMargin = 4 })
                   root.addView(tools)
                   root.addView(actionButton("🌐 ভাষা নির্বাচন: বাংলা / English", Color.rgb(55, 100, 155)) { chooseLanguage() },
                       LinearLayout.LayoutParams(-1, 48).apply { topMargin = 8 })
@@ -244,6 +246,7 @@ jobs:
               }
 
               private fun askAI(message: String) {
+                  if (openRequestedApp(message)) return
                   if (message.isBlank()) { show("আগে কিছু লিখুন অথবা মাইক্রোফোনে বলুন।"); return }
                   val endpoint = prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim()
                   show("আপনার প্রশ্নের উত্তর তৈরি হচ্ছে…")
@@ -305,6 +308,48 @@ jobs:
                   }
               }
 
+              private fun chooseAppToOpen() {
+                  val names = arrayOf("YouTube", "WhatsApp", "Facebook", "Instagram", "Chrome", "Telegram")
+                  val packages = arrayOf(
+                      "com.google.android.youtube", "com.whatsapp", "com.facebook.katana",
+                      "com.instagram.android", "com.android.chrome", "org.telegram.messenger"
+                  )
+                  AlertDialog.Builder(this).setTitle("কোন অ্যাপ খুলবেন?")
+                      .setItems(names) { _, which -> launchApp(packages[which], names[which]) }
+                      .setNegativeButton("বন্ধ", null).show()
+              }
+
+              private fun launchApp(packageName: String, label: String) {
+                  val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+                  if (launchIntent == null) {
+                      show("$label অ্যাপটি এই ফোনে ইনস্টল করা নেই।")
+                      return
+                  }
+                  try {
+                      startActivity(launchIntent)
+                      show("$label খুলছি…")
+                  } catch (_: Exception) {
+                      show("$label অ্যাপ খোলা যায়নি।")
+                  }
+              }
+
+              private fun openRequestedApp(message: String): Boolean {
+                  val text = message.lowercase(Locale.ROOT)
+                  val openWords = listOf("খোলো", "খুলে দাও", "চালু কর", "open", "launch")
+                  if (openWords.none { text.contains(it) }) return false
+                  val apps = listOf(
+                      Triple(listOf("youtube", "ইউটিউব", "ইউ টিউব"), "com.google.android.youtube", "YouTube"),
+                      Triple(listOf("whatsapp", "হোয়াটসঅ্যাপ", "হোয়াটসঅ্যাপ", "হোয়াটস অ্যাপ"), "com.whatsapp", "WhatsApp"),
+                      Triple(listOf("facebook", "ফেসবুক"), "com.facebook.katana", "Facebook"),
+                      Triple(listOf("instagram", "ইনস্টাগ্রাম"), "com.instagram.android", "Instagram"),
+                      Triple(listOf("chrome", "ক্রোম"), "com.android.chrome", "Chrome"),
+                      Triple(listOf("telegram", "টেলিগ্রাম"), "org.telegram.messenger", "Telegram")
+                  )
+                  val selected = apps.firstOrNull { app -> app.first.any { text.contains(it) } } ?: return false
+                  launchApp(selected.second, selected.third)
+                  return true
+              }
+
               private fun setServer() {
                   val field = EditText(this).apply {
                       hint = "Backend URL"
@@ -363,6 +408,16 @@ jobs:
           if 'android:icon="@drawable/ic_launcher"' not in s:
               s, count = re.subn(r'<application(?=\s|>)', '<application android:icon="@drawable/ic_launcher"', s, count=1)
               assert count == 1, "AndroidManifest.xml application tag not found"
+          if "<queries>" not in s:
+              queries = """\n    <queries>
+                  <package android:name="com.google.android.youtube" />
+                  <package android:name="com.whatsapp" />
+                  <package android:name="com.facebook.katana" />
+                  <package android:name="com.instagram.android" />
+                  <package android:name="com.android.chrome" />
+                  <package android:name="org.telegram.messenger" />
+              </queries>\n"""
+              s = s.replace("</manifest>", queries + "</manifest>")
           p.write_text(s, encoding="utf-8")
           source=next(Path("aiassistant_work/app/src/main/java").rglob("MainActivity.kt")).read_text(encoding="utf-8")
           assert 'chooseLanguage()' in source
