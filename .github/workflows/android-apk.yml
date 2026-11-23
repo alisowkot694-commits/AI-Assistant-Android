@@ -92,7 +92,7 @@ jobs:
                       setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
                   })
                   header.addView(TextView(this).apply {
-                      text = "30 Seconds Color Trading"; textSize = 15f
+                      text = "তোমার ব্যক্তিগত AI সঙ্গী"; textSize = 15f
                       setTextColor(Color.rgb(205, 235, 255)); gravity = Gravity.CENTER
                       setPadding(0, 8, 0, 0)
                   })
@@ -111,7 +111,7 @@ jobs:
                       typeface = Typeface.DEFAULT_BOLD
                   })
                   answer = TextView(this).apply {
-                      text = "আসসালামু আলাইকুম! আমি আপনার বাংলা AI সহকারী। কীভাবে সাহায্য করতে পারি?"
+                      text = prefs.getString("chat_history", null) ?: "আসসালামু আলাইকুম! আমি AI HACK, আপনার বাংলা AI সঙ্গী। কীভাবে সাহায্য করতে পারি?"
                       textSize = 17f; setTextColor(Color.rgb(20, 34, 60))
                       setPadding(0, 10, 0, 4)
                   }
@@ -281,7 +281,7 @@ jobs:
                           val bengaliReply = reply.any { it in '\u0980'..'\u09FF' }
                           if (bengaliInput && !bengaliReply) reply = "দুঃখিত, এবার বাংলায় উত্তর তৈরি করা যায়নি। আবার চেষ্টা করুন।"
                           if (reply.isBlank()) reply = "দুঃখিত, সার্ভার থেকে উত্তর পাওয়া যায়নি।"
-                          runOnUiThread { show(reply); speak(reply) }
+                          runOnUiThread { appendChat(message, reply); speak(reply) }
                           conn.disconnect()
                       } catch (_: Exception) {
                           runOnUiThread { show("সার্ভারে সংযোগ হয়নি। ইন্টারনেট ও সার্ভার সেটিংস পরীক্ষা করুন।") }
@@ -368,6 +368,13 @@ jobs:
                       }.setNegativeButton("বাতিল", null).show()
               }
 
+              private fun appendChat(user: String, reply: String) {
+                  val previous = prefs.getString("chat_history", "").orEmpty()
+                  val entry = "তুমি: $user\nAI HACK: $reply"
+                  val updated = (if (previous.isBlank()) entry else "$previous\n\n$entry").takeLast(12000)
+                  prefs.edit().putString("chat_history", updated).apply()
+                  answer.text = updated
+              }
               private fun show(text: String) { answer.text = text }
               private fun speak(text: String) {
                   if (!ttsReady) { pendingSpeech = text; return }
@@ -548,7 +555,7 @@ jobs:
                       setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD
                   })
                   card.addView(TextView(this).apply {
-                      text = "30 Seconds Color Trading"
+                      text = "তোমার ব্যক্তিগত AI সঙ্গী"
                       textSize = 12f; gravity = Gravity.CENTER
                       setTextColor(Color.rgb(160, 225, 255))
                   })
