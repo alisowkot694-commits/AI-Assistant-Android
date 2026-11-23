@@ -260,7 +260,7 @@ jobs:
                           val conn = URL(endpoint.trimEnd('/') + "/chat").openConnection() as HttpURLConnection
                           conn.requestMethod = "POST"; conn.connectTimeout = 20000; conn.readTimeout = 60000
                           conn.doOutput = true; conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                          val useBengali = message.any { it in '\u0980'..'\u09FF' } || selectedLanguage == "bn"
+                          val useBengali = message.any { Character.UnicodeBlock.of(it) == Character.UnicodeBlock.BENGALI } || selectedLanguage == "bn"
                           val prompt = if (useBengali)
                               "LANGUAGE REQUIREMENT: Reply ONLY in natural Bengali using Bengali script. You are a friendly Bengali voice assistant.\nUser message: " + message
                           else
@@ -277,7 +277,7 @@ jobs:
                                   "AI সার্ভারের চাবি (API Key) এখনো সেট করা হয়নি। তাই AI উত্তর দিতে পারছে না।"
                               else "AI সার্ভারের উত্তর: " + (detail.ifBlank { "HTTP " + code + " — অনুগ্রহ করে Render লগ পরীক্ষা করুন।" })
                           }
-                          val bengaliInput = message.any { it in '\u0980'..'\u09FF' }
+                          val bengaliInput = message.any { Character.UnicodeBlock.of(it) == Character.UnicodeBlock.BENGALI }
                           val bengaliReply = reply.any { it in '\u0980'..'\u09FF' }
                           if (bengaliInput && !bengaliReply) reply = "দুঃখিত, এবার বাংলায় উত্তর তৈরি করা যায়নি। আবার চেষ্টা করুন।"
                           if (reply.isBlank()) reply = "দুঃখিত, সার্ভার থেকে উত্তর পাওয়া যায়নি।"
@@ -445,7 +445,8 @@ jobs:
           import android.widget.*
           class FloatingButtonService : Service() {
               private lateinit var wm: WindowManager
-              private var bubble: View? = null              private var panel: View? = null
+              private var bubble: View? = null
+              private var panel: View? = null
               private lateinit var bubbleParams: WindowManager.LayoutParams
               private val channelId = "ai_hack_floating"
 
