@@ -248,6 +248,13 @@ jobs:
               private fun askAI(message: String) {
                   if (openRequestedApp(message)) return
                   if (message.isBlank()) { show("আগে কিছু লিখুন অথবা মাইক্রোফোনে বলুন।"); return }
+                  val signalRequest = listOf("big", "small", "বিগ", "স্মল", "সিগন্যাল", "সিগনাল", "কালার ট্রেড", "কালার ট্রেডিং", "পরের রাউন্ড", "কোন রঙ", "কোন রং").any { message.contains(it, ignoreCase = true) }
+                  if (signalRequest) {
+                      val safeReply = "আমি এখনো আপনার চার্ট দেখতে পাচ্ছি না। আগে আমাকে চার্ট দেখান। চার্ট না দেখে আমি BIG/SMALL বা রঙের কোনো অনুমানভিত্তিক সংকেত দেব না।"
+                      show(safeReply)
+                      speak(safeReply)
+                      return
+                  }
                   val endpoint = prefs.getString("endpoint", "https://bangla-ai-assistant-backend.onrender.com")!!.trim()
                   show("আপনার প্রশ্নের উত্তর তৈরি হচ্ছে…")
                   io.execute {
@@ -303,7 +310,8 @@ jobs:
                       startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + packageName)))
                       show("পরের স্ক্রিনে অন্য অ্যাপের ওপর দেখানোর অনুমতি চালু করে ফিরে আসুন।")
                   } else {
-                      startService(Intent(this, FloatingButtonService::class.java))
+                      val serviceIntent = Intent(this, FloatingButtonService::class.java)
+                      if (Build.VERSION.SDK_INT >= 26) startForegroundService(serviceIntent) else startService(serviceIntent)
                       show("ভাসমান AI বাটন চালু হয়েছে।")
                   }
               }
