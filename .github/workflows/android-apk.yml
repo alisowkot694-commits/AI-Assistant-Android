@@ -147,8 +147,7 @@ jobs:
                   }, LinearLayout.LayoutParams(-1, 48).apply { topMargin = 8 })
                   setContentView(root)
               }
-              private fun rounded(color: Int, radius: Int): GradientDrawable =
-                  GradientDrawable().apply { setColor(color); cornerRadius = radius.toFloat() }
+              private fun rounded(color: Int, radius: Int): GradientDrawable =                  GradientDrawable().apply { setColor(color); cornerRadius = radius.toFloat() }
 
               private fun actionButton(label: String, color: Int, action: () -> Unit): Button =
                   Button(this).apply {
@@ -297,8 +296,7 @@ jobs:
                       .setView(field).setPositiveButton("বিশ্লেষণ") { _, _ ->
                           val nums = field.text.toString().split(",", " ", "،").mapNotNull { it.trim().toIntOrNull() }.filter { it in 0..9 }
                           if (nums.isEmpty()) { show("সঠিক সংখ্যা পাওয়া যায়নি।"); return@setPositiveButton }                          val big = nums.count { it >= 5 }; val small = nums.size - big
-                          show("মোট ফলাফল: ${nums.size}টি\nBIG: $big\nSMALL: $small\n" +
-                              (if (big > small) "আগের ফলাফলে BIG বেশি" else if (small > big) "আগের ফলাফলে SMALL বেশি" else "দুটির সংখ্যা সমান") +
+                          show("মোট ফলাফল: ${nums.size}টি\nBIG: $big\nSMALL: $small\n" +                              (if (big > small) "আগের ফলাফলে BIG বেশি" else if (small > big) "আগের ফলাফলে SMALL বেশি" else "দুটির সংখ্যা সমান") +
                               "\n\nএটি শুধু অতীতের পরিসংখ্যান; পরের ফলাফলের নিশ্চয়তা নয়।")
                       }.setNegativeButton("বন্ধ", null).show()
               }
@@ -447,8 +445,7 @@ jobs:
           import android.widget.*
           class FloatingButtonService : Service() {
               private lateinit var wm: WindowManager
-              private var bubble: View? = null
-              private var panel: View? = null
+              private var bubble: View? = null              private var panel: View? = null
               private lateinit var bubbleParams: WindowManager.LayoutParams
               private val channelId = "ai_hack_floating"
 
@@ -597,8 +594,7 @@ jobs:
           if "FloatingButtonService" not in manifest_text:              manifest_text=manifest_text.replace("</application>", '''<service
                       android:name=".FloatingButtonService"
                       android:exported="false"
-                      android:stopWithTask="false"
-                      android:foregroundServiceType="specialUse">
+                      android:stopWithTask="false"                      android:foregroundServiceType="specialUse">
                       <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                           android:value="Persistent floating AI assistant overlay" />
                   </service>
@@ -643,7 +639,7 @@ jobs:
           for package in ("com.zhiliaoapp.musically", "com.facebook.orca"):
               tag = f'<package android:name="{package}" />'
               if tag not in xml:
-                  xml = xml.replace("</queries>", f"        {tag}\\n    </queries>", 1)
+                  xml = xml.replace("</queries>", f"        {tag}\n    </queries>", 1)
           manifest.write_text(xml, encoding="utf-8")
           print("Added TikTok and Messenger to voice commands, app picker and Android package visibility.")
           PY
