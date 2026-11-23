@@ -417,7 +417,7 @@ jobs:
                   <package android:name="com.android.chrome" />
                   <package android:name="org.telegram.messenger" />
               </queries>\n"""
-              s = s.replace("<application", queries + "\\n    <application", 1)
+              s = s.replace("<application", queries + chr(10) + "    <application", 1)
           p.write_text(s, encoding="utf-8")
           source=next(Path("aiassistant_work/app/src/main/java").rglob("MainActivity.kt")).read_text(encoding="utf-8")
           assert 'chooseLanguage()' in source
